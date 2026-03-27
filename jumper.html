@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Geometria Neliöt</title>
+<style>
+body {
+  margin: 0;
+  background: #222;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+}
+
+#game {
+  position: relative;
+  width: 500px;
+  height: 300px;
+  background: #eee;
+  margin: 20px auto;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+#player {
+  position: absolute;
+  bottom: 0;
+  left: 50px;
+  width: 40px;
+  height: 40px;
+  background: green;
+}
+
+#obstacle {
+  position: absolute;
+  bottom: 0;
+  left: 400px;
+  width: 40px;
+  height: 40px;
+  background: red;
+}
+
+#goal {
+  position: absolute;
+  bottom: 0;
+  width: 20px;
+  height: 200px;
+  background: gold;
+  display: none;
+}
+
+button {
+  margin: 15px;
+  padding: 8px 15px;
+}
+</style>
+</head>
+
+<body>
+
+<a href="index.html"><button>⬅️ Takaisin</button></a>
+
+<h2 id="info">Valitse level</h2>
+
+
+<div id="menu"></div>
+
+<div id="game">
+  <div id="player"></div>
+  <div id="obstacle"></div>
+  <div id="goal"></div>
+</div>
+
+<button id="retryBtn" onclick="restartGame()"
+style="display:none; margin:20px auto; display:block;">
+  🔄 Uudestaan
+</button>
+
+<script>
+let player = document.getElementById("player");
+let obstacle = document.getElementById("obstacle");
+let goal = document.getElementById("goal");
+
+let mode = "levels";
+let endlessScore = 0;
+
+let velocity = 0;
+let gravity = 0.5;
+let position = 0;
+let jumping = false;
+
+let godMode = false;
+let cheatBuffer = "";
+
+let obstacleX = 400;
+
+
+let currentLevel = 1;
+let unlocked = localStorage.getItem("levelsUnlocked") || 1;
+
+// LEVEL DATA (eri vaikeudet!)
+let levels = [
+  {goal: 10, speed: 6},
+  {goal: 20, speed: 7},
+  {goal: 30, speed: 8},
+  {goal: 40, speed: 9},
+  {goal: 50, speed: 10}
+
+];
+
+let progress = 0;
+
+// HYPPY
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && !jumping && !gameOver) {
+    velocity = 10;
+    jumping = true;
+  }
+});
+
+
+
+// LUO LEVEL VALIKKO
+function createMenu() {
+  let menu = document.getElementById("menu");
+  menu.innerHTML = "";
+
+  for (let i = 1; i <= levels.length; i++) {
+    let btn = document.createElement("button");
+
+    if (i <= unlocked) {
+      btn.textContent = "Level " + i;
+      btn.onclick = () => startLevel(i);
+    } else {
+      btn.textContent = "🔒 Level " + i;
+      btn.disabled = true;
+    }
+
+    menu.appendChild(btn);
+  }
+}
+
+createMenu();
+
+
+
+// START LEVEL
+function startLevel(lvl) {
+  currentLevel = lvl;
+  progress = 0;
+  obstacleX = 400;
+  gameOver = false;
+
+
+
+  document.getElementById("retryBtn").style.display = "none";
+
+
+  gameLoop();
+}
+
+
+// RESTART
+function restartGame() {
+  startLevel(currentLevel);
+}
+
+// GAME LOOP
+function gameLoop() {
+  if (gameOver) return;
+
+  let levelData = levels[currentLevel - 1];
+
+  velocity -= gravity;
+  position += velocity;
+
+  if (position <= 0) {
+    position = 0;
+    jumping = false;
+  }
+
+  player.style.bottom = position + "px";
+
+  obstacleX -= levelData.speed;
+  obstacle.style.left = obstacleX + "px";
+
+  // este reset
+  if (obstacleX < -40) {
+    obstacleX = 400;
+    progress++;
+
+    // siirrä maali lähemmäs loppua
+   let goalX = obstacleX + (levelData.goal - progress) * 200;
+goal.style.left = goalX + "px";
+  }
+
+  // törmäys
+  if (obstacleX < 90 && obstacleX > 40 && position < 40) {
+    gameOver = true;
+    document.getElementById("retryBtn").style.display = "block";
+  }
+
+  // VOITTO
+  if (progress >= levelData.goal) {
+    gameOver = true;
+
+    alert("🎉 Level " + currentLevel + " läpäisty!");
+
+    if (currentLevel == unlocked && unlocked < levels.length) {
+      unlocked++;
+      localStorage.setItem("levelsUnlocked", unlocked);
+    }
+
+    createMenu();
+    document.getElementById("retryBtn").style.display = "block";
+  }
+
+  document.getElementById("info").textContent =
+    "Level " + currentLevel + " | " + progress + "/" + levelData.goal;
+
+  requestAnimationFrame(gameLoop);
+}
+
+</script>
+
+</body>
+</html>

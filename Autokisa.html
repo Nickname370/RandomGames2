@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<title>Autokisa</title>
+<style>
+body { margin:0; background:#111; color:white; text-align:center; }
+canvas { background:#222; display:block; margin:auto; }
+button { margin:10px; padding:8px 12px; }
+</style>
+</head>
+<body>
+
+<a href="index.html"><button>⬅️ Takaisin</button></a>
+
+<h1>🏎️ Autokisa</h1>
+<p>WASD = aja</p>
+<p>Kierros: <span id="laps">0</span></p>
+
+<canvas id="game" width="900" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let keys = {};
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+let laps = 0;
+let crossedLine = false;
+
+let player = {
+  x: 150,
+  y: 300,
+  angle: 0,
+  speed: 0
+};
+
+// ISOMPI RATA
+let outerWalls = [
+  {x:50,y:50,w:800,h:20},
+  {x:50,y:530,w:800,h:20},
+  {x:50,y:50,w:20,h:500},
+  {x:830,y:50,w:20,h:500}
+];
+
+let innerWalls = [
+  {x:200,y:200,w:500,h:20},
+  {x:200,y:400,w:500,h:20},
+  {x:200,y:200,w:20,h:220},
+  {x:680,y:200,w:20,h:220}
+];
+
+let walls = [...outerWalls, ...innerWalls];
+
+function update(){
+  // WASD liike
+  if(keys["w"]) player.speed += 0.15;
+  if(keys["s"]) player.speed -= 0.1;
+
+  player.speed *= 0.98;
+
+  if(keys["a"]) player.angle -= 0.05;
+  if(keys["d"]) player.angle += 0.05;
+
+  player.x += Math.cos(player.angle) * player.speed;
+  player.y += Math.sin(player.angle) * player.speed;
+
+  // Törmäys
+  walls.forEach(w=>{
+    if(player.x > w.x && player.x < w.x+w.w && player.y > w.y && player.y < w.y+w.h){
+      player.speed *= -0.5;
+    }
+  });
+
+  // 🏁 Kierroslaskuri (lähtöviivan ylitys)
+  if(player.x > 140 && player.x < 180 && player.y > 260 && player.y < 340){
+    if(!crossedLine){
+      laps++;
+      document.getElementById("laps").textContent = laps;
+      crossedLine = true;
+    }
+  } else {
+    crossedLine = false;
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // rata
+  ctx.fillStyle = "#555";
+  outerWalls.forEach(w=> ctx.fillRect(w.x,w.y,w.w,w.h));
+
+  ctx.fillStyle = "#333";
+  innerWalls.forEach(w=> ctx.fillRect(w.x,w.y,w.w,w.h));
+
+  // lähtöviiva
+  ctx.fillStyle = "white";
+  for(let i=0;i<10;i++){
+    ctx.fillRect(140 + i*10, 260, 5, 80);
+  }
+
+  // auto
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.rotate(player.angle);
+
+  ctx.fillStyle = "red";
+  ctx.fillRect(-12,-6,24,12);
+
+  ctx.restore();
+}
+
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

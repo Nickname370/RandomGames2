@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tornin Puolustus</title>
+<style>
+  body { margin: 0; background: #111; color: #fff; font-family: Arial; }
+  canvas { display: block; margin: auto; background: #222; }
+  #ui { text-align: center; padding: 10px; }
+  button { padding: 8px 12px; margin: 5px; }
+</style>
+</head>
+<body>
+<a href="index.html"><button>⬅️ Takaisin</button></a>
+<div id="ui">
+  <span>Raha: <span id="money">100</span></span>
+  <button onclick="startWave()">Aloita aalto</button>
+  <span>Base HP: <span id="baseHP">20</span></span>
+</div>
+<canvas id="game" width="600" height="400"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const TILE = 40;
+const COLS = canvas.width / TILE;
+const ROWS = canvas.height / TILE;
+
+let baseHP = 20;
+let money = 100;
+let towers = [];
+let enemies = [];
+let bullets = [];
+let wave = 0;
+
+// Grid (0 = empty, 1 = path, 2 = tower)
+let grid = Array.from({length: ROWS}, ()=>Array(COLS).fill(0));
+
+// Define path tiles
+const pathTiles = [
+  [0,5],[1,5],[2,5],[3,5],[4,5],
+  [4,4],[4,3],[4,2],
+  [5,2],[6,2],[7,2],[8,2],[9,2],
+  [9,3],[9,4],[9,5],[9,6],[9,7],
+  [10,7],[11,7],[12,7],[13,7],[14,7]
+];
+
+pathTiles.forEach(([x,y])=>grid[y][x]=1);
+
+function gridToPixel(x,y){
+  return {x: x*TILE + TILE/2, y: y*TILE + TILE/2};
+}
+
+canvas.addEventListener('click', (e)=>{
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const gx = Math.floor(mx / TILE);
+  const gy = Math.floor(my / TILE);
+
+  if(grid[gy][gx] === 0 && money >= 50){
+    const pos = gridToPixel(gx,gy);
+    towers.push({x:pos.x,y:pos.y,range:80,fireRate:30,cooldown:0});
+    grid[gy][gx] = 2;
+    money -= 50;
+    document.getElementById('money').textContent = money;
+  }
+});
+
+function spawnEnemy(){
+  const start = gridToPixel(pathTiles[0][0], pathTiles[0][1]);
+  enemies.push({
+    x: start.x,
+    y: start.y,
+    hp: 100,
+    speed: 1,
+    step: 0,
+    damage: 1
+  });
+}
+
+function startWave(){
+  wave++;
+  for(let i=0;i<wave*5;i++){
+    setTimeout(spawnEnemy, i*500);
+  }
+}
+
+function update(){
+
+  // ✅ 1. VIHOLLISTEN LIIKE (LISÄÄ TÄMÄ TÄHÄN)
+  enemies.forEach(e=>{
+    const nextTile = pathTiles[e.step+1];
+    if(!nextTile) return;
+
+    const target = gridToPixel(nextTile[0], nextTile[1]);
+    const dx = target.x - e.x;
+    const dy = target.y - e.y;
+    const dist = Math.hypot(dx,dy);
+
+    if(dist < 2){
+      e.step++;
+    } else {
+      e.x += dx/dist * e.speed;
+      e.y += dy/dist * e.speed;
+    }
+  });
+
+  // Towers shoot
+  towers.forEach(t=>{
+    t.cooldown--;
+    if(t.cooldown <= 0){
+      const target = enemies.find(e=>Math.hypot(e.x-t.x,e.y-t.y)<t.range);
+      if(target){
+        bullets.push({x:t.x,y:t.y,target});
+        t.cooldown = t.fireRate;
+      }
+    }
+  });
+
+  // Bullets
+  bullets.forEach(b=>{
+    const dx = b.target.x - b.x;
+    const dy = b.target.y - b.y;
+    const dist = Math.hypot(dx,dy);
+    if(dist < 5){
+      b.target.hp -= 50;
+      b.hit = true;
+    } else {
+      b.x += dx/dist * 5;
+      b.y += dy/dist * 5;
+    }
+  });
+
+  bullets = bullets.filter(b=>!b.hit);
+
+  // Remove dead enemies
+  enemies = enemies.filter(e=>{
+  const nextTile = pathTiles[e.step+1];
+
+  if(!nextTile){
+    baseHP -= e.damage; // ✅ toimii, koska e on olemassa
+    document.getElementById('baseHP').textContent = baseHP;
+
+    if(baseHP <= 0){
+      alert("Base tuhottu! Game Over!");
+      location.reload();
+    }
+
+    return false;
+  }
+
+  if(e.hp <= 0){
+    money += 10;
+    document.getElementById('money').textContent = money;
+    return false;
+  }
+
+  return true;
+});
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Draw grid
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
+	
+	
+
+      if(grid[y][x] === 1){
+        ctx.fillStyle = '#614242';
+        ctx.fillRect(x*TILE,y*TILE,TILE,TILE);
+      }
+      ctx.strokeStyle = '#333';
+      ctx.strokeRect(x*TILE,y*TILE,TILE,TILE);
+    }
+  }
+  
+  // Base = viimeinen path tile
+const lastTile = pathTiles[pathTiles.length - 1];
+const basePos = gridToPixel(lastTile[0], lastTile[1]);
+
+ctx.fillStyle = 'blue';
+ctx.fillRect(
+  basePos.x - TILE/2,
+  basePos.y - TILE/2,
+  TILE,
+  TILE
+);
+
+  // Towers
+  towers.forEach(t=>{
+    ctx.fillStyle = 'cyan';
+    ctx.beginPath();
+    ctx.arc(t.x,t.y,10,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // Enemies
+  enemies.forEach(e=>{
+    ctx.fillStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(e.x,e.y,8,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // Bullets
+  ctx.fillStyle = 'yellow';
+  bullets.forEach(b=>{
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,3,0,Math.PI*2);
+    ctx.fill();
+  });
+}
+
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

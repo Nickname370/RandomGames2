@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Paksu Lintu</title>
+<style>
+body {
+  margin: 0;
+  background: skyblue;
+  text-align: center;
+  font-family: Arial;
+}
+
+#game {
+  position: relative;
+  width: 400px;
+  height: 500px;
+  background: lightblue;
+  margin: auto;
+  overflow: hidden;
+  border: 2px solid black;
+}
+
+#bird {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: url("bird.png");
+  background-size: cover;
+  background-position: center;
+  left: 80px;
+  top: 200px;
+}
+
+.pipe {
+  position: absolute;
+  width: 60px;
+  background: green;
+}
+
+#score {
+  font-size: 24px;
+  margin: 10px;
+}
+
+#retryBtn {
+  display: none;
+  margin: 10px auto;
+}
+
+#backBtn {
+  display: block;
+  margin: 10px auto;
+}
+
+</style>
+</head>
+
+<body>
+<a href="index.html">
+  <button id="backBtn">⬅️ Takaisin</button>
+</a>
+<h2 id="score">Pisteet: 0</h2>
+<h3>🏆 Ennätys: <span id="best">0</span></h3>
+
+<div id="game">
+  <div id="bird"></div>
+</div>
+
+<button id="retryBtn" onclick="restartGame()">🔄 Uudestaan</button>
+
+<script>
+let bird = document.getElementById("bird");
+let game = document.getElementById("game");
+
+let velocity = 0;
+let gravity = 0.5;
+let birdY = 200;
+
+let bestScore = parseInt(localStorage.getItem("flappyBest")) || 0;
+
+let pipes = [];
+let gameOver = false;
+let score = 0;
+
+// HYPPY
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && !gameOver) {
+    velocity = -6;
+  }
+});
+
+// LUO PUTKI
+function createPipe() {
+let gap = 225; // aukon koko
+
+let minTop = 50;
+let maxTop = 500 - gap - 50;
+
+// 🔥 aina turvallinen arvo
+let topHeight = Math.random() * (maxTop - minTop) + minTop;
+
+let bottomHeight = 500 - topHeight - gap;
+topHeight = Math.floor(topHeight);
+
+  let topPipe = document.createElement("div");
+  topPipe.classList.add("pipe");
+  topPipe.style.height = topHeight + "px";
+  topPipe.style.top = "0px";
+  topPipe.style.left = "400px";
+
+  let bottomPipe = document.createElement("div");
+  bottomPipe.classList.add("pipe");
+  bottomPipe.style.height = bottomHeight + "px";
+  bottomPipe.style.bottom = "0px";
+  bottomPipe.style.left = "400px";
+
+  game.appendChild(topPipe);
+  game.appendChild(bottomPipe);
+
+  pipes.push({top: topPipe, bottom: bottomPipe, x: 400, passed: false});
+}
+
+// GAME LOOP
+function gameLoop() {
+  if (gameOver) return;
+
+  velocity += gravity;
+  birdY += velocity;
+
+  bird.style.top = birdY + "px";
+
+  // putket
+  pipes.forEach(p => {
+    p.x -= 2;
+    p.top.style.left = p.x + "px";
+    p.bottom.style.left = p.x + "px";
+
+    // piste
+    if (!p.passed && p.x < 80) {
+      p.passed = true;
+      score++;
+      document.getElementById("score").textContent = "Pisteet: " + score;
+    }
+	
+	if (score > bestScore) {
+  bestScore = score;
+  localStorage.setItem("flappyBest", bestScore);
+}
+
+    // törmäys
+    if (
+      p.x < 120 && p.x > 40 &&
+      (birdY < p.top.offsetHeight || birdY + 40 > 500 - p.bottom.offsetHeight)
+    ) {
+      endGame();
+    }
+  });
+
+  // putki spawn
+  if (Math.random() < 0.02) {
+    createPipe();
+  }
+
+  // kuolee maahan / kattoon
+  if (birdY < 0 || birdY > 460) {
+    endGame();
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// GAME OVER
+function endGame() {
+  gameOver = true;
+  document.getElementById("retryBtn").style.display = "block";
+}
+
+// RESTART
+function restartGame() {
+  pipes.forEach(p => {
+    p.top.remove();
+    p.bottom.remove();
+  });
+
+  pipes = [];
+  birdY = 200;
+  velocity = 0;
+  score = 0;
+  gameOver = false;
+
+  document.getElementById("score").textContent = "Pisteet: 0";
+  document.getElementById("retryBtn").style.display = "none";
+
+  gameLoop();
+}
+
+window.onload = function() {
+  bestScore = localStorage.getItem("flappyBest") || 0;
+  document.getElementById("best").textContent = bestScore;
+};
+
+
+// käynnistä peli
+gameLoop();
+</script>
+
+</body>
+</html>
